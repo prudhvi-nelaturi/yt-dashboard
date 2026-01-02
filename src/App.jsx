@@ -1,13 +1,27 @@
 import React, { useState } from 'react';
-import { Upload, Settings, List, CheckCircle, Clock, Loader2 } from 'lucide-react';
+import { Upload, Settings, List, CheckCircle, Clock, Loader2, FileVideo } from 'lucide-react';
 
 export default function Dashboard() {
   const [desc, setDesc] = useState("");
-  const [path, setPath] = useState("C:/Videos/Uploads");
+  const [path, setPath] = useState("/Users/prudhvi/Videos");
+  const [selectedFile, setSelectedFile] = useState(null); // New state for the file
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('video/')) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) setSelectedFile(file);
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Sidebar */}
+      {/* Sidebar - Same as before */}
       <aside className="w-64 bg-slate-900 text-white p-6 flex flex-col gap-8">
         <h1 className="text-xl font-bold tracking-tight">YT-Local <span className="text-red-500">Auto</span></h1>
         <nav className="flex flex-col gap-4">
@@ -17,57 +31,66 @@ export default function Dashboard() {
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-10">
-      <header className="mb-8 flex justify-between items-center">
-  <h2 className="text-3xl font-bold">Video Manager</h2>
-  <div className="flex flex-col items-end gap-2">
-    <div className="text-sm bg-white border px-4 py-2 rounded-lg shadow-sm flex items-center gap-3">
-      Watching: <code className="text-blue-600 font-mono font-bold">{path}</code>
-      <button 
-        onClick={() => {
-          const newPath = prompt("Enter local folder path to watch:", path);
-          if (newPath) setPath(newPath);
-        }}
-        className="p-1 hover:bg-slate-100 rounded transition text-slate-400 hover:text-blue-600"
-        title="Change Watch Path"
-      >
-        <Settings size={14} />
-      </button>
-    </div>
-  </div>
-</header>
+        <header className="mb-8 flex justify-between items-center">
+          <h2 className="text-3xl font-bold">Video Manager</h2>
+          <div className="text-sm bg-white border px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
+            Watching: <code className="text-blue-600 font-mono">{path}</code>
+            <button onClick={() => setPath(prompt("New Path:", path))}><Settings size={14}/></button>
+          </div>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Upload & Form Section */}
           <section className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition flex flex-col items-center justify-center h-48 group cursor-pointer">
-              <Upload className="text-slate-400 group-hover:text-blue-500 mb-2" size={40} />
-              <p className="text-slate-500">Drag and drop video files or <span className="text-blue-600 font-semibold">browse</span></p>
+            
+            {/* Drag & Drop Area */}
+            <div 
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleFileDrop}
+              className={`bg-white p-8 rounded-2xl border-2 border-dashed transition flex flex-col items-center justify-center h-48 cursor-pointer 
+                ${selectedFile ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:border-blue-400'}`}
+            >
+              <input type="file" id="fileInput" hidden accept="video/*" onChange={handleFileSelect} />
+              <label htmlFor="fileInput" className="flex flex-col items-center cursor-pointer">
+                {selectedFile ? (
+                  <>
+                    <FileVideo className="text-emerald-500 mb-2" size={40} />
+                    <p className="text-emerald-700 font-medium">{selectedFile.name}</p>
+                    <p className="text-xs text-emerald-600">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="text-slate-400 mb-2" size={40} />
+                    <p className="text-slate-500">Drag videos or <span className="text-blue-600 font-semibold">browse</span></p>
+                  </>
+                )}
+              </label>
             </div>
 
+            {/* Form Fields */}
             <div className="bg-white p-6 rounded-xl shadow-sm border space-y-4">
-              <input type="text" placeholder="Video Title" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+              <input type="text" placeholder="Video Title" className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
               <div className="relative">
                 <textarea 
                   placeholder="Description" 
                   maxLength={5000}
                   onChange={(e) => setDesc(e.target.value)}
-                  className="w-full p-3 border rounded-lg h-32 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full p-3 border rounded-lg h-32 outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <span className="absolute bottom-3 right-3 text-xs text-slate-400">{desc.length}/5000</span>
               </div>
-              <input type="text" placeholder="Tags (comma separated)" className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition">Queue for Upload</button>
+              <input type="text" placeholder="Tags" className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:bg-slate-300" disabled={!selectedFile}>
+                Queue for Upload
+              </button>
             </div>
           </section>
 
           {/* Status Table */}
           <section className="bg-white p-6 rounded-xl shadow-sm border h-fit">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><Clock size={18}/> Recent Activity</h3>
+            <h3 className="font-bold mb-4 flex items-center gap-2"><Clock size={18}/> Activity</h3>
             <div className="space-y-4">
               <StatusRow title="Project_Alpha.mp4" status="Uploading" icon={<Loader2 className="animate-spin text-blue-500"/>} />
-              <StatusRow title="Dev_Vlog_01.mp4" status="Pending" icon={<Clock className="text-amber-500"/>} />
               <StatusRow title="Java_Tutorial.mp4" status="Finished" icon={<CheckCircle className="text-emerald-500"/>} />
             </div>
           </section>
