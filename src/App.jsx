@@ -3,8 +3,10 @@ import { Upload, Settings, List, CheckCircle, Clock, Loader2, FileVideo } from '
 
 export default function Dashboard() {
   const [desc, setDesc] = useState("");
-  const [path, setPath] = useState("/Users/prudhvi/Videos");
-  const [selectedFile, setSelectedFile] = useState(null); // New state for the file
+  const [path, setPath] = useState("/Users/prudhvinelaturi/Volume 1/YT_auto_upload_App/yt-uploads");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [title, setTitle] = useState("");
+  const [tags, setTags] = useState("");
 
   const handleFileDrop = (e) => {
     e.preventDefault();
@@ -14,14 +16,61 @@ export default function Dashboard() {
     }
   };
 
+  const updateWatchPath = async (newPath) => {
+    try {
+      const response = await fetch("http://localhost:8080/api/videos/config-path", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: newPath,
+      });
+  
+      if (response.ok) {
+        setPath(newPath); // Only update UI if backend confirms
+        alert("Backend is now watching: " + newPath);
+      } else {
+        const error = await response.text();
+        alert("Invalid path: " + error);
+      }
+    } catch {
+      alert("Connection failed. Is Spring Boot running?");
+    }
+  };
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) setSelectedFile(file);
   };
 
+  const handleQueueUpload = async () => {
+    const payload = {
+      title,
+      description: desc,
+      tags,
+      fileName: selectedFile.name,
+      localPath: path
+    };
+  
+    try {
+      const response = await fetch("http://localhost:8080/api/videos/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+  
+      if (response.ok) {
+        alert("Success! Metadata queued and file verified.");
+      } else {
+        const error = await response.text();
+        alert("Backend error: " + error);
+      }
+    } catch {
+      alert("Could not connect to Spring Boot. Is it running?");
+    }
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Sidebar - Same as before */}
+      {/* Sidebar */}
       <aside className="w-64 bg-slate-900 text-white p-6 flex flex-col gap-8">
         <h1 className="text-xl font-bold tracking-tight">YT-Local <span className="text-red-500">Auto</span></h1>
         <nav className="flex flex-col gap-4">
@@ -36,32 +85,57 @@ export default function Dashboard() {
           <h2 className="text-3xl font-bold">Video Manager</h2>
           <div className="text-sm bg-white border px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
             Watching: <code className="text-blue-600 font-mono">{path}</code>
-            <button onClick={() => setPath(prompt("New Path:", path))}><Settings size={14}/></button>
+            <button 
+              onClick={() => {
+                const newPath = prompt("Enter local folder path to watch:", path);
+                if (newPath && newPath !== path) updateWatchPath(newPath);
+              }}
+              className="hover:text-blue-600 transition-colors p-1"
+              title="Change Watch Path"
+            >
+              <Settings size={14}/>
+            </button>
           </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <section className="lg:col-span-2 space-y-6">
             
-            {/* Drag & Drop Area */}
+            {/* Fully Clickable Drag & Drop Area */}
             <div 
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleFileDrop}
-              className={`bg-white p-8 rounded-2xl border-2 border-dashed transition flex flex-col items-center justify-center h-48 cursor-pointer 
+              className={`relative bg-white rounded-2xl border-2 border-dashed transition h-48 group
                 ${selectedFile ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:border-blue-400'}`}
             >
-              <input type="file" id="fileInput" hidden accept="video/*" onChange={handleFileSelect} />
-              <label htmlFor="fileInput" className="flex flex-col items-center cursor-pointer">
+              <input 
+                type="file" 
+                id="fileInput" 
+                hidden 
+                accept="video/*" 
+                onChange={handleFileSelect} 
+              />
+              
+              <label 
+                htmlFor="fileInput" 
+                className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer w-full h-full"
+              >
                 {selectedFile ? (
                   <>
                     <FileVideo className="text-emerald-500 mb-2" size={40} />
-                    <p className="text-emerald-700 font-medium">{selectedFile.name}</p>
-                    <p className="text-xs text-emerald-600">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    <p className="text-emerald-700 font-medium px-4 text-center truncate w-full">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-xs text-emerald-600">
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
                   </>
                 ) : (
                   <>
-                    <Upload className="text-slate-400 mb-2" size={40} />
-                    <p className="text-slate-500">Drag videos or <span className="text-blue-600 font-semibold">browse</span></p>
+                    <Upload className="text-slate-400 group-hover:text-blue-500 transition-colors mb-2" size={40} />
+                    <p className="text-slate-500 text-center">
+                      Drag videos or <span className="text-blue-600 font-semibold">click anywhere to browse</span>
+                    </p>
                   </>
                 )}
               </label>
@@ -69,18 +143,35 @@ export default function Dashboard() {
 
             {/* Form Fields */}
             <div className="bg-white p-6 rounded-xl shadow-sm border space-y-4">
-              <input type="text" placeholder="Video Title" className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+              <input 
+                type="text" 
+                placeholder="Video Title" 
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+              />
               <div className="relative">
                 <textarea 
                   placeholder="Description" 
                   maxLength={5000}
+                  value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   className="w-full p-3 border rounded-lg h-32 outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <span className="absolute bottom-3 right-3 text-xs text-slate-400">{desc.length}/5000</span>
               </div>
-              <input type="text" placeholder="Tags" className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-              <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:bg-slate-300" disabled={!selectedFile}>
+              <input 
+                type="text" 
+                placeholder="Tags (comma separated)" 
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+              />
+              <button 
+                onClick={handleQueueUpload}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:bg-slate-300 disabled:cursor-not-allowed" 
+                disabled={!selectedFile || !title}
+              >
                 Queue for Upload
               </button>
             </div>
@@ -88,10 +179,9 @@ export default function Dashboard() {
 
           {/* Status Table */}
           <section className="bg-white p-6 rounded-xl shadow-sm border h-fit">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><Clock size={18}/> Activity</h3>
+            <h3 className="font-bold mb-4 flex items-center gap-2"><Clock size={18}/> Recent Activity</h3>
             <div className="space-y-4">
-              <StatusRow title="Project_Alpha.mp4" status="Uploading" icon={<Loader2 className="animate-spin text-blue-500"/>} />
-              <StatusRow title="Java_Tutorial.mp4" status="Finished" icon={<CheckCircle className="text-emerald-500"/>} />
+              <StatusRow title="Waiting for input..." status="Idle" icon={<Clock className="text-slate-300"/>} />
             </div>
           </section>
         </div>
